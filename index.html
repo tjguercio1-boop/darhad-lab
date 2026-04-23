@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Darhad Field Lab PRO</title>
+    <style>
+        :root { --p: #1a2a6c; --a: #f2a154; --s: #2ecc71; --r: #e74c3c; --bg: #f8fafc; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: #1e293b; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .app-container { max-width: 500px; margin: auto; display: flex; flex-direction: column; min-height: 100vh; }
+        header { background: var(--p); color: white; padding: 20px 15px; text-align: center; border-radius: 0 0 25px 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .day-scroller { display: flex; overflow-x: auto; gap: 8px; padding: 15px; scrollbar-width: none; }
+        .day-card { min-width: 50px; height: 50px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid #e2e8f0; cursor: pointer; }
+        .day-card.active { background: var(--a); color: white; border-color: var(--a); transform: scale(1.1); }
+        .nav-tabs { display: flex; padding: 0 15px 15px; gap: 10px; }
+        .tab { flex: 1; padding: 12px; background: #e2e8f0; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; }
+        .tab.active { background: var(--p); color: white; }
+        .main-card { flex-grow: 1; background: white; margin: 0 15px 15px; border-radius: 24px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        .word-list { overflow-y: auto; height: 450px; }
+        .word-item { padding: 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+        .cyr { font-size: 20px; font-weight: bold; color: var(--p); }
+        .lat { font-size: 13px; color: #64748b; }
+        .phon { font-size: 11px; color: var(--a); font-family: monospace; font-weight: bold; }
+        .eng { font-size: 14px; font-style: italic; color: #475569; }
+        .play-btn { background: #f1f5f9; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+        .option { width: 100%; padding: 16px; margin-bottom: 10px; border-radius: 16px; border: 2px solid #f1f5f9; background: white; font-size: 16px; font-weight: bold; text-align: left; }
+        .option.correct { background: var(--s); color: white; }
+        .option.wrong { background: var(--r); color: white; }
+        .stats-footer { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; font-weight: bold; margin-top: auto; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1 style="margin:0; font-size: 22px;">🏹 Darhad Field Lab</h1>
+        <div id="day-title" style="font-size: 11px; text-transform: uppercase; margin-top: 5px;">Loading...</div>
+    </header>
+
+    <div class="day-scroller" id="dayPicker"></div>
+
+    <div class="nav-tabs">
+        <button class="tab active" id="tab-learn" onclick="switchMode('learn')">Study</button>
+        <button class="tab" id="tab-quiz" onclick="switchMode('quiz')">Quiz</button>
+    </div>
+
+    <div class="main-card" id="main-card">
+        <div id="content-area"></div>
+        <div class="stats-footer" id="stats-area"></div>
+    </div>
+</div>
+
+<script>
+const syllabus = {
+    1: { t: "Alphabet 1: Vowels", w: [
+        {c: "А а", l: "A", p: "ah", e: "Father"}, {c: "Э э", l: "E", p: "eh", e: "Help"}, {c: "И и", l: "I", p: "ee", e: "See"},
+        {c: "О о", l: "O", p: "aw", e: "Law"}, {c: "Ө ө", l: "Ö", p: "uh", e: "Urn"}, {c: "У у", l: "U", p: "oo", e: "Moon"},
+        {c: "Ү ү", l: "Ü", p: "uuee", e: "French 'Tu'"}, {c: "Я я", l: "Ya", p: "yah", e: "Yard"}, {c: "Е е", l: "Ye", p: "yeh", e: "Yes"},
+        {c: "Ё ё", l: "Yo", p: "yaw", e: "Yawn"}, {c: "Ю ю", l: "Yu", p: "yoo", e: "Youth"}, {c: "Ы ы", l: "Y", p: "ee", e: "Long E"},
+        {c: "Явъя", l: "Yavya", p: "yav ya", e: "Let's go"}, {c: "Одоо", l: "Odoo", p: "oh doh", e: "Now"}, {c: "Энд", l: "End", p: "end", e: "Here"},
+        {c: "Тэнд", l: "Tend", p: "tend", e: "There"}, {c: "Би", l: "Bi", p: "bee", e: "I/Me"}, {c: "Чи", l: "Chi", p: "chee", e: "You (Casual)"},
+        {c: "Та", l: "Ta", p: "tah", e: "You (Polite)"}, {c: "Тэр", l: "Ter", p: "tair", e: "He/She/It"}, {c: "Бид", l: "Bid", p: "beed", e: "We"},
+        {c: "Сайн", l: "Sain", p: "sighn", e: "Good"}, {c: "Муу", p: "Muu", p: "moo", e: "Bad"}, {c: "Их", l: "Ikh", p: "ikh", e: "Very/Much"},
+        {c: "Бага", l: "Baga", p: "bah-gah", e: "Little/Few"}, {c: "Тийм", l: "Tiim", p: "teem", e: "Yes"}, {c: "Үгүй", l: "Ugui", p: "oog-way", e: "No"},
+        {c: "За", l: "Za", p: "sah", e: "Okay/Yes"}, {c: "Энэ", l: "Ene", p: "en-ay", e: "This"}, {c: "Тэр", l: "Ter", p: "tair", e: "That"}
+    ]},
+    2: { t: "Alphabet 2: Consonants", w: [
+        {c: "Б б", l: "B", p: "beh", e: "B"}, {c: "В в", l: "V/W", p: "wah", e: "W sound"}, {c: "Г г", l: "G", p: "gah", e: "G"},
+        {c: "Д д", l: "D", p: "deh", e: "D"}, {c: "Л л", l: "L", p: "ul", e: "L"}, {c: "М м", l: "M", p: "mah", e: "M"},
+        {c: "Н н", l: "N", p: "nah", e: "N"}, {c: "П п", l: "P", p: "peh", e: "P"}, {c: "Р р", l: "R", p: "er", e: "Rolled R"},
+        {c: "С с", l: "S", p: "sah", e: "S"}, {c: "Х х", l: "Kh", p: "khah", e: "Guttural H"}, {c: "Ж ж", l: "J", p: "jah", e: "Soft S"},
+        {c: "З з", l: "Z", p: "sah", e: "Soft S"}, {c: "Ц ц", l: "Ts", p: "tsah", e: "Cats"}, {c: "Ч ч", l: "Ch", p: "chah", e: "Check"},
+        {c: "Ш ш", l: "Sh", p: "shah", e: "Show"}, {c: "Ь ь", l: "Soft", p: "ee", e: "Softens letter"}, {c: "Ъ ъ", l: "Hard", p: "stop", e: "Pause"},
+        {c: "Хэн?", l: "Hen?", p: "hen", e: "Who?"}, {c: "Юу?", l: "Yuu?", p: "yoo", e: "What?"}, {c: "Хаана?", l: "Haana?", p: "hah-nah", e: "Where?"},
+        {c: "Хэзээ?", l: "Hezee?", p: "hed-say", e: "When?"}, {c: "Яаж?", l: "Yaaj?", p: "yahj", e: "How?"}, {c: "Ямар?", l: "Yamar?", p: "yam-ar", e: "Which?"},
+        {c: "Хэд?", l: "Hed?", p: "hed", e: "How many?"}, {c: "Яагаад?", l: "Yagaad?", p: "yah-gahd", e: "Why?"}, {c: "Хэрэгтэй", l: "Heregtei", p: "hair-eg-tay", e: "Need"},
+        {c: "Бэлэн", l: "Belen", p: "bel-en", e: "Ready"}, {c: "Мэдлээ", l: "Medlee", p: "med-lay", e: "Understood"}, {c: "Мэдэхгүй", l: "Medekhgui", p: "med-oog-way", e: "I don't know"}
+    ]},
+    3: { t: "Protocol & Survival", w: [
+        {c: "Сайн байна уу?", l: "Sain baina uu?", p: "sighn bay-nah ooh", e: "Hello (Formal)"},
+        {c: "Баярлалаа", l: "Bayarlalaa", p: "byar-la-la", e: "Thank you"},
+        {c: "Мори уя?", l: "Mori uy?", p: "mory oy", e: "Is the dog safe? (Essential)"},
+        {c: "Уучлаарай", l: "Uuchlaarai", p: "ootch-lar-ay", e: "Sorry/Excuse me"},
+        {c: "Таны нэр хэн бэ?", l: "Tanii ner hen be?", p: "tah-nee ner hen bay", e: "What is your name?"},
+        {c: "Миний нэр...", l: "Minii ner...", p: "min-ee ner", e: "My name is..."},
+        {c: "Би Америк хүн", l: "Bi Amerik khun", p: "bee amerk hoon", e: "I am American"},
+        {c: "Нойл хаана байна?", l: "Noil haana baina?", p: "noil hah-nah bayn", e: "Where is the toilet?"},
+        {c: "Би өлсөж байна", l: "Bi olsoj baina", p: "bee ool-soj bayn", e: "I am hungry"},
+        {c: "Би цангаж байна", l: "Bi tsangaj baina", p: "bee tsang-aj bayn", e: "I am thirsty"},
+        {c: "Би ядарч байна", l: "Bi yadarch baina", p: "bee ya-darch bayn", e: "I am tired"},
+        {c: "Дахиад хэлээрэй", l: "Dakhiad heleerei", p: "dah-hee-ad hel-air-ay", e: "Say it again"},
+        {c: "Би ойлгохгүй байна", l: "Bi oilgokhgui baina", p: "bee oil-go-oog-way bayn", e: "I don't understand"},
+        {c: "Зүгээр ээ", l: "Zugeer ee", p: "su-geer ay", e: "It's fine / No problem"},
+        {c: "Сайхан", l: "Saikhan", p: "sigh-khahn", e: "Beautiful/Great"},
+        {c: "Явъя", l: "Yavya", p: "yav ya", e: "Let's go"},
+        {c: "Зогсоорой", l: "Zogsooroi", p: "sog-sor-oy", e: "Stop!"},
+        {c: "Халуун байна", l: "Khaluun baina", p: "hah-loon bayn", e: "It is hot"},
+        {c: "Хүйтэн байна", l: "Khuiten baina", p: "hwee-ten bayn", e: "It is cold"},
+        {c: "Бороо орж байна", l: "Boro orj baina", p: "boh-roh orj bayn", e: "It is raining"},
+        {c: "Салхитай байна", l: "Salkhitai baina", p: "sal-hee-tay bayn", e: "It is windy"},
+        {c: "Аюултай", l: "Ayuultai", p: "ay-ool-tie", e: "Dangerous"},
+        {c: "Туслаарай!", l: "Tuslaarai!", p: "tus-lar-ay", e: "Help!"},
+        {c: "Эмнэлэг", l: "Emneleg", p: "em-nel-eg", e: "Hospital"},
+        {c: "Цагдаа", l: "Tsagdaa", p: "tsag-dah", e: "Police"},
+        {c: "Би төөрчихлөө", l: "Bi toortchikhloo", p: "bee tor-tch-lohk-lo", e: "I am lost"},
+        {c: "Утас", l: "Utas", p: "oo-tass", e: "Phone"},
+        {c: "Сүлжээ", l: "Suljee", p: "sool-jay", e: "Network/Signal"},
+        {c: "Ус", l: "Us", p: "ooss", e: "Water"},
+        {c: "Баяртай", l: "Bayartai", p: "by-ar-tie", e: "Goodbye"}
+    ]},
+    4: { t: "Numbers & 32 Logic", w: [
+        {c: "Тэг", l: "Teg", p: "teg", e: "0"}, {c: "Нэг", l: "Neg", p: "neg", e: "1"}, {c: "Хоёр", l: "Hoyor", p: "hoy-or", e: "2"},
+        {c: "Гурав", l: "Gurav", p: "goor-av", e: "3"}, {c: "Дөрөв", l: "Dorov", p: "door-uv", e: "4"}, {c: "Тав", l: "Tav", p: "tav", e: "5"},
+        {c: "Зургаа", l: "Zurgaa", p: "soor-gah", e: "6"}, {c: "Долоо", l: "Doloo", p: "doh-loh", e: "7"}, {c: "Найм", l: "Naim", p: "nyme", e: "8"},
+        {c: "Ес", l: "Yos", p: "yuss", e: "9"}, {c: "Арав", l: "Arav", p: "ar-av", e: "10"}, {c: "Арван нэг", l: "Arvan neg", p: "ar-van-neg", e: "11 (10+1)"},
+        {c: "Арван хоёр", l: "Arvan hoyor", p: "ar-van-hoy-or", e: "12"}, {c: "Хори", l: "Hori", p: "hor-ee", e: "20"},
+        {c: "Хорин нэг", l: "Horin neg", p: "hor-in-neg", e: "21"}, {c: "Гуч", l: "Guch", p: "gooch", e: "30"},
+        {c: "Гучин хоёр", l: "Guchin hoyor", p: "goot-chin-hoy-or", e: "32 (30+2)"}, {c: "Дөч", l: "Douch", p: "dotch", e: "40"},
+        {c: "Тавь", l: "Tavi", p: "tav-ee", e: "50"}, {c: "Жат", l: "Jat", p: "jat", e: "60"}, {c: "Дал", l: "Dal", p: "dal", e: "70"},
+        {c: "Ная", p: "Naye", p: "nye", e: "80"}, {c: "Ер", l: "Yer", p: "yer", e: "90"}, {c: "Зуу", l: "Zuu", p: "soo", e: "100"},
+        {c: "Зуун нэг", l: "Zuun neg", p: "soon neg", e: "101"}, {c: "Хоёр зуу", l: "Hoyor zuu", p: "hoy-or soo", e: "200"},
+        {c: "Хэд?", l: "Hed?", p: "hed", e: "How many?"}, {c: "Дандаа", l: "Dandaa", p: "dan-dah", e: "Always"},
+        {c: "Нэг удаа", l: "Neg udaa", p: "neg oo-dah", e: "Once"}, {c: "Хагас", l: "Khagas", p: "khah-gas", e: "Half"}
+    ]},
+    5: { t: "1000s & Marketplace", w: [
+        {c: "Мянга", l: "Myanga", p: "myang-ah", e: "1,000"}, {c: "Хоёр мянга", l: "Hoyor myanga", p: "hoy-or myang-ah", e: "2,000"},
+        {c: "Таван мянга", l: "Tavan myanga", p: "tav-un myang-ah", e: "5,000"}, {c: "Арван мянга", l: "Arvan myanga", p: "ar-van myang-ah", e: "10,000"},
+        {c: "Мөнгө", l: "Mungo", p: "moon-guh", e: "Money"}, {c: "Төгрөг", p: "Tugrik", p: "toog-roog", e: "Currency"},
+        {c: "Энэ хэд вэ?", l: "Ene hed ve?", p: "en-ay hed vay", e: "How much is this?"}, {c: "Үнэтэй", l: "Unetei", p: "oon-ay-tay", e: "Expensive"},
+        {c: "Хямдхан", l: "Hyamdhan", p: "hyam-don", e: "Cheap"}, {c: "Хямдрал", l: "Hyamdral", p: "hyam-dral", e: "Discount"},
+        {c: "Хариулт", l: "Khariult", p: "khar-ee-oolt", e: "Change (cash)"}, {c: "Бэлэн мөнгө", l: "Belen mungo", p: "bel-en moon-guh", e: "Cash"},
+        {c: "Карт", l: "Kart", p: "kart", e: "Card"}, {c: "Дэлгүүр", l: "Delguur", p: "del-goor", e: "Store"},
+        {c: "Зах", l: "Zakh", p: "sah", e: "Market"}, {c: "Авъя", l: "Avya", p: "av-ya", e: "I will buy it"},
+        {c: "Өгөх", l: "Ogokh", p: "oh-goh", e: "To give"}, {c: "Бичих", l: "Bichikh", p: "bitch-ikh", e: "To write"},
+        {c: "Бичээд өгөөч", l: "Bichead ogootch", p: "bitch-aid oh-gootch", e: "Write it down please"},
+        {c: "Цүнх", l: "Tsunkh", p: "tsoonkh", e: "Bag"}, {c: "Талх", l: "Talkh", p: "tal-ukh", e: "Bread"},
+        {c: "Сүү", l: "Suu", p: "soo", e: "Milk"}, {c: "Өндөг", l: "Ondog", p: "oon-doog", e: "Egg"},
+        {c: "Мах", l: "Makh", p: "makh", e: "Meat"}, {c: "Жимс", l: "Jims", p: "jims", e: "Fruit"},
+        {c: "Ногоо", l: "Nogoo", p: "noh-goh", e: "Vegetables"}, {c: "Давс", l: "Davs", p: "davss", e: "Salt"},
+        {c: "Чихэр", l: "Chikher", p: "chi-hair", e: "Sugar/Sweet"}, {c: "Хайрцаг", l: "Khairtsag", p: "khire-tsag", e: "Box"},
+        {c: "Шинэ", l: "Shine", p: "shi-nay", e: "New"}
+    ]},
+    6: { t: "Directions & Logistics", w: [
+        {c: "Баруун", l: "Baruun", p: "bah-roon", e: "Right / West"}, {c: "Зүүн", l: "Zuun", p: "soon", e: "Left / East"},
+        {c: "Чигээрээ", l: "Chigeeree", p: "chig-air-ay", e: "Straight ahead"}, {c: "Урагшаа", l: "Uragshaa", p: "ooh-rag-sha", e: "Forward / South"},
+        {c: "Хойшоо", l: "Khoishoo", p: "hoy-sho", e: "Backward / North"}, {c: "Дээшээ", l: "Deeshee", p: "dee-shay", e: "Up"},
+        {c: "Доошоо", l: "Dooshoo", p: "doh-shay", e: "Down"}, {c: "Эргэх", l: "Ergekh", p: "er-gekh", e: "To turn"},
+        {c: "Хол", l: "Khol", p: "hohl", e: "Far"}, {c: "Ойрхон", l: "Oirkhon", p: "oyr-hon", e: "Near"},
+        {c: "Зам", l: "Zam", p: "sam", e: "Road/Path"}, {c: "Газрын зураг", l: "Gazryn zurag", p: "gas-reen soor-ag", e: "Map"},
+        {c: "Машин", l: "Mashin", p: "mah-shin", e: "Car/Truck"}, {c: "Бензин", l: "Benzin", p: "ben-sin", e: "Gasoline"},
+        {c: "Дугуй", l: "Dugui", p: "doo-goy", e: "Tire/Wheel"}, {c: "Засах", l: "Zasakh", p: "zas-ah", e: "To fix"},
+        {c: "Эвдэрсэн", l: "Evdersen", p: "eb-der-sen", e: "Broken"}, {c: "Зогсоол", l: "Zogsool", p: "sog-sohl", e: "Parking/Stop"},
+        {c: "Гүүр", l: "Guur", p: "goor", e: "Bridge"}, {c: "Уул", l: "Uul", p: "ool", e: "Mountain"},
+        {c: "Гол", l: "Gol", p: "goal", e: "River"}, {c: "Хөдөө", l: "Khodoo", p: "hoo-doo", e: "Countryside/Field"},
+        {c: "Аймаг", l: "Aimag", p: "eye-mag", e: "Province"}, {c: "Сум", l: "Sum", p: "soom", e: "District/Village"},
+        {c: "Хаашаа?", l: "Haasha?", p: "hah-shah", e: "To where?"}, {c: "Хаанаас?", l: "Haanas?", p: "hah-nahs", e: "From where?"},
+        {c: "Хаалга", l: "Khalga", p: "khal-gah", e: "Door"}, {c: "Цонх", l: "Tsonkh", p: "tsonkh", e: "Window"},
+        {c: "Түлхүүр", l: "Tulkhuur", p: "tool-koor", e: "Key"}, {c: "Нээх", l: "Neekh", p: "nay-khah", e: "Open"}
+    ]},
+    7: { t: "Food & Ger Manners", w: [
+        {c: "Цай", l: "Tsai", p: "tsigh", e: "Tea"}, {c: "Сүүтэй цай", l: "Suutei tsai", p: "soo-tay-tsigh", e: "Milk tea"},
+        {c: "Кофе", l: "Kofe", p: "kof-ay", e: "Coffee"}, {c: "Бууз", l: "Buuz", p: "booss", e: "Steamed dumpling"},
+        {c: "Хушуур", l: "Khuushuur", p: "hoosh-oor", e: "Fried dumpling"}, {c: "Цуйван", l: "Tsuivan", p: "tsway-van", e: "Noodle stew"},
+        {c: "Шөл", l: "Shol", p: "shool", e: "Soup"}, {c: "Хонин мах", l: "Khonin makh", p: "ho-nin makh", e: "Mutton"},
+        {c: "Үхрийн мах", l: "Ukhrin makh", p: "ooh-reen makh", e: "Beef"}, {c: "Ааруул", l: "Aaruul", p: "ah-rool", e: "Dried curd"},
+        {c: "Өрөм", l: "Orom", p: "oo-room", e: "Clotted cream"}, {c: "Тараг", l: "Tarag", p: "tar-ag", e: "Yogurt"},
+        {c: "Дахиад жаахан", l: "Dakhiad jaakhan", p: "dah-hee-ad jah-khahn", e: "A little more"},
+        {c: "Би цадчихлаа", l: "Bi tsadtchikhloo", p: "bee tsad-tch-lohk-lo", e: "I am full"},
+        {c: "Амттай", l: "Amttai", p: "amt-tay", e: "Delicious"}, {c: "Давстай", l: "Davstai", p: "davss-tay", e: "Salty"},
+        {c: "Хутга", l: "Khutga", p: "hoot-gah", e: "Knife"}, {c: "Сэрээ", l: "Seree", p: "ser-ay", e: "Fork"},
+        {c: "Халбага", l: "Khalbaga", p: "hal-bag-ah", e: "Spoon"}, {c: "Аяга", l: "Ayaga", p: "ah-ya-gah", e: "Cup/Bowl"},
+        {c: "Таваг", l: "Tavag", p: "tav-ag", e: "Plate"}, {c: "Гэр", l: "Ger", p: "ger", e: "Ger/Yurt"},
+        {c: "Баруун гараараа ав", l: "Baruun gar", p: "bah-roon gar", e: "Take with right hand"},
+        {c: "Зүүн талд суу", l: "Zuun tald", p: "soon tald", e: "Sit on the left"},
+        {c: "Гал", l: "Gal", p: "gal", e: "Fire"}, {c: "Түлш", l: "Tulsh", p: "toolsh", e: "Fuel"},
+        {c: "Аргал", l: "Argal", p: "ar-gal", e: "Dried dung (fuel)"}, {c: "Дулаан", l: "Dulaan", p: "doo-lahn", e: "Warm"},
+        {c: "Сайхан хооллоорой", l: "Saikhan khooloora", p: "sigh-khahn hohl-oh-roy", e: "Enjoy your meal"},
+        {c: "Баярлалаа, сайхан байлаа", l: "Bayarlalaa", p: "byar-la-la", e: "Thank you, it was great"}
+    ]}
+};
+
+let currentDay = parseInt(localStorage.getItem('darhad_day')) || 1;
+let mode = 'learn', quizPool = [], missedWords = JSON.parse(localStorage.getItem('darhad_missed')) || [], score = { correct: 0, total: 0 };
+
+function init() { renderDayPicker(); render(); }
+function renderDayPicker() {
+    const p = document.getElementById('dayPicker'); p.innerHTML = '';
+    for(let i=1; i<=21; i++) {
+        const d = document.createElement('div'); d.className = `day-card ${i === currentDay ? 'active' : ''}`;
+        d.innerText = i; d.onclick = () => { currentDay = i; localStorage.setItem('darhad_day', i); switchMode('learn'); };
+        p.appendChild(d);
+    }
+}
+function switchMode(m) {
+    mode = m; document.getElementById('tab-learn').classList.toggle('active', m === 'learn');
+    document.getElementById('tab-quiz').classList.toggle('active', m === 'quiz');
+    if(m === 'quiz') { 
+        const d = syllabus[currentDay]?.w || []; 
+        quizPool = [...d, ...missedWords.slice(0, 5)].sort(() => Math.random() - 0.5);
+        score = { correct: 0, total: quizPool.length };
+    }
+    render();
+}
+function render() {
+    const area = document.getElementById('content-area'); const dayData = syllabus[currentDay] || { t: "Researcher Pro", w: [] };
+    document.getElementById('day-title').innerText = `Day ${currentDay}: ${dayData.t}`;
+    if(mode === 'learn') {
+        area.innerHTML = `<div class="word-list">` + dayData.w.map(w => `
+            <div class="word-item"><div><div class="cyr">${w.c}</div><div class="lat">${w.l} <span class="phon">[${w.p}]</span></div><div class="eng">${w.e}</div></div><button class="play-btn" onclick="speak('${w.p}')">▶</button></div>`).join('') + `</div>`;
+    } else { renderQuiz(); }
+}
+function renderQuiz() {
+    const area = document.getElementById('content-area');
+    if(!quizPool.length) { area.innerHTML = `<div style="text-align:center; padding:40px;"><h2>Round Over</h2><div style="font-size:40px; font-weight:800">${Math.round((score.correct/score.total)*100)}%</div><button class="option" onclick="switchMode('quiz')">Retry</button></div>`; return; }
+    const cur = quizPool[quizPool.length - 1]; let all = Object.values(syllabus).flatMap(d => d.w), opts = [cur];
+    while(opts.length < 4) { let r = all[Math.floor(Math.random()*all.length)]; if(!opts.find(o => o.c === r.c)) opts.push(r); }
+    opts.sort(() => Math.random() - 0.5);
+    area.innerHTML = `<div class="quiz-q">Identify:</div><div style="font-size:24px; font-weight:800; margin-bottom:20px; text-align:center;">"${cur.e}"</div>` + opts.map(o => `<button class="option" onclick="check(this, ${o === cur})">${o.c} <span style="font-size:10px; opacity:0.5">${o.l}</span></button>`).join('');
+}
+function check(btn, isCorrect) {
+    const w = quizPool.pop();
+    if(isCorrect) { score.correct++; btn.classList.add('correct'); speak(w.p); setTimeout(render, 800); }
+    else { btn.classList.add('wrong'); if(!missedWords.find(x => x.c === w.c)) { missedWords.push(w); localStorage.setItem('darhad_missed', JSON.stringify(missedWords)); } setTimeout(render, 400); }
+}
+function speak(p) { 
+    window.speechSynthesis.cancel(); 
+    const m = new SpeechSynthesisUtterance(p.replace(/[^a-z ]/g, '') + "."); 
+    m.rate = 0.7; window.speechSynthesis.speak(m); 
+}
+init();
+</script>
+</body>
+</html>
